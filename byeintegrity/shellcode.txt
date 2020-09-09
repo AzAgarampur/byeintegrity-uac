@@ -1,0 +1,44 @@
+int 3
+cmp dl, 1
+jne exitNow
+push rdi
+sub rsp, 224
+lea rax, qword ptr 112[rsp]
+mov rdi, rax
+xor eax, eax
+mov ecx, 104
+rep stosb
+mov dword ptr 112[rsp], 104
+lea rax, qword ptr 80[rsp]
+mov qword ptr [rsp+72], rax
+lea rax, qword ptr 112[rsp]
+mov qword ptr [rsp+64], rax
+mov qword ptr [rsp+56], 0
+mov qword ptr [rsp+48], 0
+mov dword ptr [rsp+40], 0
+mov dword ptr [rsp+32], 0
+xor r9d, r9d
+xor r8d, r8d
+xor edx, edx
+lea rcx, [rip + 0x41]
+
+mov rax, QWORD PTR gs:[0x30]
+add rax, 0x60
+mov rax, [rax]
+add rax, 0x18
+mov rax, [rax]
+mov rax, [rax + 0x10]
+mov rax, [rax]
+mov rax, [rax]
+mov rax, [rax + 0x30]
+xor r12, r12
+mov r12d, 0xdeadbeef 
+add rax, r12	;now RAX has is the address of CreateProcessA
+
+call rax
+add rsp, 224
+pop rdi
+exitNow:
+xor rax, rax
+mov al, 1
+ret
