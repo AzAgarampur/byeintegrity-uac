@@ -18,3 +18,6 @@ This repository contains the code for this attack. **AMD64 ONLY**. It will attem
 
 The code is written in C++ and uses the C++ standard library for string handling and such. It uses the Win32 API. (Not the NTAPI, I just wanted a working, reliable sample.) The ASM source for the shellcode is located in `shellcode.txt` *Note: the `int 3` is not included in the actual program source, but is in `shellcode.txt`.*
 **`IFileOperation` is used to modify directories; thanks `hfiref0x/UACME` for the source that allowed me to learn how to do this.**
+
+## Tested versions
+This has been developed and tested on **only Windows 10 Version 2004 (Build 10.0.19042).**
