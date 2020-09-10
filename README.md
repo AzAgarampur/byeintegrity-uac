@@ -20,4 +20,4 @@ The code is written in C++ and uses the C++ standard library for string handling
 **`IFileOperation` is used to modify directories; thanks `hfiref0x/UACME` for the source that allowed me to learn how to do this.**
 
 ## Tested versions
-This has been developed and tested on **only Windows 10 Version 2004 (Build 19041.450).**
+This has been developed and tested on **only Windows 10 Version 2004 (Build 10.0.19042).**
