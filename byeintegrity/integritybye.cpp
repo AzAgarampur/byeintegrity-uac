@@ -630,9 +630,12 @@ tryagain:
 	  *	Launch the Firewall Snap-in via WF.msc to execute the exploit and do the attack.
 	  */
 
-	if (reinterpret_cast<int>(ShellExecuteW(nullptr, L"open", L"WF.msc", nullptr, nullptr, SW_NORMAL)) <= 32)
+	const auto shellExecuteResult{
+		reinterpret_cast<int>(ShellExecuteW(nullptr, L"open", L"WF.msc", nullptr, nullptr, SW_NORMAL))
+	};
+	if (shellExecuteResult <= 32)
 	{
-		std::cout << "ShellExecuteW() failed.\n";
+		std::cout << "ShellExecuteW() failed. Error: " << shellExecuteResult << std::endl;
 		return EXIT_FAILURE;
 	}
 
