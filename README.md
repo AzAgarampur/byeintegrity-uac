@@ -1,6 +1,11 @@
-﻿# ByeIntegrity — Windows UAC Bypass
+# ByeIntegrity — Windows UAC Bypass
 Bypass User Account Control (UAC) to gain elevated (Administrator) privileges to run any program at a high integrity level.
 ![](example.gif)
+
+## Requirements
+- Administrator account
+- UAC notification level set to default or lower
+
 ## How it works
 ByeIntegrity hijacks a DLL located in the Native Image Cache (NIC). The NIC is used by the .NET Framework to store optimized .NET Assemblies that have been generated from programs like Ngen, the .NET Framework Native Image Generator. Because Ngen is usually run under the current user with Administrative privileges through the Task Scheduler, the NIC grants modify access for members of the Administrators group.
 
