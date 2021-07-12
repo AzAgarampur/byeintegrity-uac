@@ -22,5 +22,3 @@ If you’re reading this then you probably know how to compile the source. Just 
 Just like UACMe, **I will never upload compiled binaries to this repo.** There are always people who want the world to crash and burn, and I'm not going to provide an easy route for them to run this on somebody else's computer and cause intentional damage. I also don't want script-kiddies to use this attack without understanding what it does and the damage it can cause.
 ## Supported Versions
 This attack works from Windows 7 (7600) up until the latest version of Windows 10.
-
-[![HitCount](http://hits.dwyl.com/AzAgarampur/byeintegrity-uac.svg)](http://hits.dwyl.com/AzAgarampur/byeintegrity-uac)
