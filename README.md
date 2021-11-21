@@ -6,6 +6,29 @@ Bypass User Account Control (UAC) to gain elevated (Administrator) privileges to
 - Administrator account
 - UAC notification level set to default or lower
 
+## 2021 Update
+I have decided to update ByeIntegrity so that it's much faster, lightweight, and reliable. This is a significant overhaul so I've created a new project in the VS solution called "ByeIntegrity2021," which is the updated version of this attack. Of course, the original version is still there. For more information on the new version, expand the details below.
+
+<details>
+	<summary>Update information</summary>
+
+---
+The new version now is able to hijack the NIC without depending on the existing native images installed into the NIC. It does this by creating its own native image descriptors and payloads, then moving them into the NIC, eliminating the need for:
+  
+- Existing `*.ni` images produced by `NGEN.exe`
+- Running the system maintenance tasks
+- NIC directory traversal
+- Long wait/run time
+- Limited number of runs (before hijacked DLL runs out of space)
+  
+The CLR loads native images from the NIC by doing a recursive directory scan of each entry, and then reading its `*.aux` file. This file contains information about the native image, and its dependencies. Based off the information in the `AUX` file, the CLR will either load the image or reject it, and then move on to the next candidate. If no viable candidates are found, it loads the standard image and uses jit to compile it normally. No part of the actual native image is read (it is only checked for its existence), so ByeIntegrity simply places the payload DLL with the same name the native image would have.
+  
+The updated version of ByeIntegrity comes with a tool called **AUXGen**, which takes in the name of an assembly from the GAC and then generates its corresponding `AUX` file. The `AUX` file is generated so that it matches the CLR's checks and the CLR will load the "native image" which is described by the `AUX` file. Note: AUXGen does not handle dependencies when generating the `AUX` file. It only does as much as it needs to so that the CLR will load the image. I will post details of the `AUX` file format later.
+
+ByeIntegrity now uses `ISecurityEditor`, just like UACMe does, which cuts down on the needed code. It also requires that you have generated the `AUX` file for the assembly `MMCEx`, and placed it in the same directory as ByeIntegrity. `MMCEx` is now the targeted image because of its load order and shorter name.
+  
+</details>
+
 ## How it works
 ByeIntegrity hijacks a DLL located in the Native Image Cache (NIC). The NIC is used by the .NET Framework to store optimized .NET Assemblies that have been generated from programs like Ngen, the .NET Framework Native Image Generator. Because Ngen is usually run under the current user with Administrative privileges through the Task Scheduler, the NIC grants modify access for members of the Administrators group.
 
@@ -21,4 +44,4 @@ If you’re reading this then you probably know how to compile the source. Just 
 
 Just like UACMe, **I will never upload compiled binaries to this repo.** There are always people who want the world to crash and burn, and I'm not going to provide an easy route for them to run this on somebody else's computer and cause intentional damage. I also don't want script-kiddies to use this attack without understanding what it does and the damage it can cause.
 ## Supported Versions
-This attack works from Windows 7 (7600) up until the latest version of Windows 10.
+This attack works from Windows 7 (7600) up until the latest version of Windows.
